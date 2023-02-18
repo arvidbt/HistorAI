@@ -2,11 +2,15 @@ import { Configuration, OpenAIApi } from "openai";
 import bodyParser from "body-parser";
 import express from "express";
 import dotenv from "dotenv";
+import axios from "axios";
+import request from "request";
 
 dotenv.config();
 
 const app = express();
 const port = 1337;
+
+const eventApiRoute = "https://api.api-ninjas.com/v1/historicalevents?text=";
 
 app.use(bodyParser.json());
 
@@ -25,6 +29,21 @@ app.post("/image", async (req, res) => {
   });
 
   res.send(response.data.data[0].url);
+});
+
+app.get("/prompt", async (req, res) => {
+  const query = req.body.prompt;
+  request.get(
+    {
+      url: eventApiRoute + query,
+      headers: {
+        "X-Api-Key": process.env.NINJA_API_KEY,
+      },
+    },
+    (_error, _response, body) => {
+      res.json(body);
+    }
+  );
 });
 
 app.listen(port, () => {
