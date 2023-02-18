@@ -30,5 +30,3 @@ app.post("/image", async (req, res) => {
 app.listen(port, () => {
   console.log(`Server is listening on port: ${port}`);
 });
-
-// OPENAI_API_KEY="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"
