@@ -2,48 +2,53 @@ import { Configuration, OpenAIApi } from "openai";
 import bodyParser from "body-parser";
 import express from "express";
 import dotenv from "dotenv";
-import axios from "axios";
 import request from "request";
 
 dotenv.config();
 
-const app = express();
+const app = express().use(bodyParser.json());
 const port = 1337;
 
-const eventApiRoute = "https://api.api-ninjas.com/v1/historicalevents?text=";
+const PROMPT_EVENT_URL = "https://api.api-ninjas.com/v1/historicalevents?text=";
+const PREF_IMG_SIZE = "1024x1024";
 
-app.use(bodyParser.json());
+const openai = new OpenAIApi(
+  new Configuration({
+    apiKey: process.env.OPENAI_API_KEY,
+  })
+);
 
-const config = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-const openai = new OpenAIApi(config);
-
-app.post("/image", async (req, res) => {
-  const { prompt } = req.body;
-  const response = await openai.createImage({
-    prompt: prompt,
-    n: 1,
-    size: "1024x1024",
-  });
-
-  res.send(response.data.data[0].url);
-});
-
-app.get("/prompt", async (req, res) => {
-  const query = req.body.prompt;
-  request.get(
-    {
-      url: eventApiRoute + query,
-      headers: {
-        "X-Api-Key": process.env.NINJA_API_KEY,
+const getPrompt = async () => {
+  return new Promise((resolve, reject) => {
+    request.get(
+      {
+        url: PROMPT_EVENT_URL + "roman empire",
+        headers: {
+          "X-Api-Key": process.env.NINJA_API_KEY,
+        },
       },
-    },
-    (_error, _response, body) => {
-      res.json(body);
-    }
-  );
+      (error, response, body) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(body);
+        }
+      }
+    );
+  });
+};
+
+app.post("/image", (req, res) => {
+  getPrompt().then(async (data) => {
+    const response = data;
+    const parsedResponse = JSON.parse(response);
+    const imgResponse = await openai.createImage({
+      prompt: parsedResponse[0].event,
+      n: 1,
+      size: PREF_IMG_SIZE,
+    });
+    res.send(imgResponse.data.data[0].url);
+  });
 });
 
 app.listen(port, () => {
