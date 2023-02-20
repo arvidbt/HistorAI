@@ -1,13 +1,8 @@
 import { Configuration, OpenAIApi } from "openai";
-import bodyParser from "body-parser";
-import express from "express";
 import dotenv from "dotenv";
 import request from "request";
 
 dotenv.config();
-
-const app = express().use(bodyParser.json());
-const port = 1337;
 
 const BASE_URL = "https://api.api-ninjas.com/v1/historicalevents?year=";
 const PREF_IMG_SIZE = "1024x1024";
@@ -18,12 +13,17 @@ const openai = new OpenAIApi(
   })
 );
 
+const imageInfo = {
+  base64: "",
+  event: "",
+};
+
 const stylePrompts = [
-  " with a realistic style",
-  " with a cartoonish style",
-  " with a abstract style",
-  " with a Baroque style",
-  " with a Classicism style",
+  " with a Realism art style",
+  " with a Cartoon art style",
+  " with a Abstract art style",
+  " with a Baroque art style",
+  " with a Classicism art style",
   " with a Conceptual art style",
 ];
 
@@ -55,13 +55,12 @@ const getDate = () => {
   const day = date.getDate();
   const month = date.getMonth() + 1;
   const year = date.getFullYear();
-
   return { day: day, month: month, year: year };
 };
 
 const getPrompt = async () => {
   const date = getDate();
-  const urlFormatted = `${BASE_URL}${date.year}&month=${date.month}`; // &day=${date.day}
+  const urlFormatted = `${BASE_URL}${date.year}&month=${date.month}`;
   return new Promise((resolve, reject) => {
     request.get(
       {
@@ -81,22 +80,33 @@ const getPrompt = async () => {
   });
 };
 
-app.post("/image", (req, res) => {
+export const generateImage = () => {
   getPrompt().then(async (data) => {
     const response = data;
     const parsedResponse = JSON.parse(response);
     const closestEvent = getClosestEvent(parsedResponse);
+    const style = stylePrompts[Math.floor(Math.random() * stylePrompts.length)];
     const imgResponse = await openai.createImage({
-      prompt:
-        closestEvent.event +
-        stylePrompts[Math.floor(Math.random() * stylePrompts.length)],
+      prompt: closestEvent.event + style,
       n: 1,
       size: PREF_IMG_SIZE,
+      response_format: "b64_json",
     });
-    res.send(imgResponse.data.data[0].url);
-  });
-});
 
-app.listen(port, () => {
-  console.log(`Server is listening on port: ${port}`);
+    console.log("Hej!");
+
+    imageInfo.event = closestEvent.event;
+    imageInfo.base64 = imgResponse.data.data[0].b64_json;
+    const imgElement = document.getElementById("image");
+    imgElement.src = "data:image/png;base64," + imageInfo.base64;
+    const pElement = document.getElementById("image-caption");
+    pElement.textContent = imageInfo.event;
+  });
+};
+
+document.querySelector("#generate-img-btn");
+
+myButton.addEventListener("click", () => {
+  console.log("click");
+  generateImage();
 });
